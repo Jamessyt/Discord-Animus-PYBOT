@@ -1,0 +1,44 @@
+COOLDOWN_DURATION = 7200
+
+# Define a custom error for the cooldown
+class CooldownError(commands.CommandError):
+    pass
+
+# Add the cooldown decorator to the work command
+@client.command()
+@commands.cooldown(1, COOLDOWN_DURATION, commands.BucketType.user)
+async def work(ctx):
+    # List of job opportunities
+    jobs = [
+    {"name": "As Altair in Stealth", "min_earnings": 150, "max_earnings": 500},
+    {"name": "On Edward's Jackdaw damaged armor, fixed it", "min_earnings": 200, "max_earnings": 400},
+    {"name": "As Basim", "min_earnings": 180, "max_earnings": 450},
+    {"name": "On Arno's Hidden Blade To Fix It", "min_earnings": 180, "max_earnings": 450},
+    {"name": "In Jacobs Factory", "min_earnings": 180, "max_earnings": 450},
+    {"name": "On Edwards House", "min_earnings": 180, "max_earnings": 450},
+    {"name": "As Ezio In The Darkness", "min_earnings": 100, "max_earnings": 300},
+    # Add more job opportunities as needed
+]
+
+    job = random.choice(jobs)
+    earnings = random.randint(job["min_earnings"], job["max_earnings"])
+
+    # Simulate earning money and update the user's bank
+    await update_bank(ctx.author, earnings)
+
+    embed = discord.Embed(
+        title="🥷 Working..",
+        description=f'{ctx.author.mention} You worked {job["name"]} and earned 🪙 **{earnings} Helix Credits**!')
+
+    await ctx.send(embed=embed)
+
+# Define an error handler for the CooldownError
+@work.error
+async def work_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        # Calculate the remaining cooldown time
+        remaining_time = round(error.retry_after)
+        await ctx.send(f"You're on cooldown for {remaining_time} seconds. Please try again later.")
+    else:
+        # Handle other errors
+        await ctx.send(f"An error occurred: {error}")

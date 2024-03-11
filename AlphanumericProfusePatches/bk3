@@ -1,0 +1,960 @@
+@client.command()
+async def howac(ctx):
+    # Generate a random percentage for the Assassin level
+    assassin_percentage = random.randint(0, 100)
+
+    # Create an embed
+    embed = discord.Embed(
+        title=f"{ctx.author.display_name}'s Assassin Level",
+        description=f"{ctx.author.mention} is {assassin_percentage}% Assassin 🥷",
+        color=discord.Color.green()
+    )
+
+    embed.set_image(url="https://media.discordapp.net/attachments/1157770692054487111/1158453119877922989/gip_2.gif?ex=651c4d0a&is=651afb8a&hm=5814e8b9c3d28a2237dad8dbc95892c2825312d15531ff949834a0971e4d2775&=&width=600&height=337")
+    # Send the embed message
+    await ctx.send(embed=embed)
+
+
+mainshop = [{"name": "Altair-Skin", "price": 200, "description": ""},
+            {"name": "Connor-London Skin", "price": 300, "description": ""},
+            {"name": "Edward-Jackdaw-Armor-2", "price": 750, "description": ""}]
+
+
+@client.command(aliases=['bal'])
+async def balance(ctx):
+    await open_account(ctx.author)
+    user = ctx.author
+
+    users = await get_bank_data()
+
+    wallet_amt = users[str(user.id)]["wallet"]
+    bank_amt = users[str(user.id)]["bank"]
+
+    em = discord.Embed(title=f'{ctx.author.name} Balance! 🪙 ', color=discord.Color.blue())
+    em.add_field(name="Wallet Balance", value=wallet_amt)
+    em.add_field(name='Bank Balance', value=bank_amt)
+
+    em.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+    await ctx.send(embed=em)
+
+
+@client.command()
+async def battle(ctx, opponent: discord.Member):
+    outcomes_and_gifs = {
+        "You were on a fight with {opponent} and you knifed his neck!": [
+            "https://media.discordapp.net/attachments/1158878665040478389/1159224674966851715/R.gif?ex=65303f1b&is=651dca1b&hm=96ee0f0ff401cf83bedff866c6f2b48bd2cd02a86bf26e6e3c3a87266cae871e&=&width=625&height=212"
+
+        ]
+    }
+
+    outcome_text = random.choice(list(outcomes_and_gifs.keys())).format(opponent=opponent.mention)
+    gif_urls = outcomes_and_gifs[outcome_text]
+    gif_url = random.choice(gif_urls)
+
+    # Create an embed message
+    embed = discord.Embed(
+        title="Battle Outcome",
+        description=outcome_text,
+        color=discord.Color.green() if "won" in outcome_text else discord.Color.red()
+    )
+
+    # Set the GIF URL in the embed
+    embed.set_image(url=gif_url)
+
+    await ctx.send(embed=embed)
+
+
+@client.command()
+async def beg(ctx):
+    await open_account(ctx.author)
+    user = ctx.author
+
+    users = await get_bank_data()
+
+    earnings = random.randrange(101)
+
+    embed = discord.Embed(
+        title="Begging Altair!",
+        description=f'{ctx.author.mention} Congrats! 🙏 You Begged Altair And Got 🪙 **{earnings}** Helix credits! `Very proud of you son` 🍷',
+        color=discord.Color.green()
+    )
+
+    users[str(user.id)]["wallet"] += earnings
+
+    with open("mainbank.json", 'w') as f:
+        json.dump(users, f)
+
+    await ctx.send(embed=embed)
+
+
+@client.command(aliases=['with'])
+async def withdraw(ctx, amount=None, current_datetime=None):
+    await open_account(ctx.author)
+
+    if amount is None:
+        await ctx.send("Please enter the amount")
+        return
+
+    bal = await update_bank(ctx.author)
+
+    amount = int(amount)
+
+    if amount > bal[1]:
+        await ctx.send('You do not have sufficient balance')
+        return
+    if amount < 0:
+        await ctx.send('Amount must be positive!')
+        return
+
+    await update_bank(ctx.author, amount)
+    await update_bank(ctx.author, -1 * amount, 'bank')
+
+    # Get the current date and time
+    current_datetime = datetime.now()
+
+    embed = discord.Embed(
+        title="**✅ Withdrawing Credits**",
+        description=f'{ctx.author.mention} You withdrew 🪙 **{amount} Helix Credits**',
+        color=discord.Color.green()
+
+    )
+    embed.set_footer(text=f'As of {current_datetime.strftime("%Y-%m-%d %H:%M:%S")}')
+
+    await ctx.send(embed=embed)
+
+
+
+
+
+
+
+
+
+
+@client.command(aliases=['dep'])
+async def deposit(ctx, amount=None):
+    await open_account(ctx.author)
+
+    if amount is None:
+        await ctx.send("`Please enter the amount` 🥷")
+        return
+
+    bal = await update_bank(ctx.author)
+
+    amount = int(amount)
+
+    if amount > bal[0]:
+        await ctx.send('You do not have sufficient balance')
+        return
+    if amount < 0:
+        await ctx.send('**Amount must be positive!** 🥷')
+        return
+
+    await update_bank(ctx.author, -1 * amount)
+    await update_bank(ctx.author, amount, 'bank')
+
+    embed = discord.Embed(
+        title="🪙 **Deposit Credits**",
+        description=f'{ctx.author.mention} You deposited 🪙 **{amount} Helix Credits**',
+        color=discord.Color.blue()
+    )
+
+    await ctx.send(embed=embed)
+
+
+
+@client.command(aliases=['sn'])
+async def send(ctx, member: discord.Member, amount=None):
+    await open_account(ctx.author)
+    await open_account(member)
+    if amount == None:
+        await ctx.send("Please enter the amount")
+        return
+
+    bal = await update_bank(ctx.author)
+    if amount == 'all':
+        amount = bal[0]
+
+    amount = int(amount)
+
+    if amount > bal[0]:
+        await ctx.send('You do not have sufficient balance')
+        return
+    if amount < 0:
+        await ctx.send('Amount must be positive!')
+        return
+
+    await update_bank(ctx.author, -1 * amount, 'bank')
+    await update_bank(member, amount, 'bank')
+    await ctx.send(f'{ctx.author.mention} You Gave {member} 🪙 **{amount} Helix Credits**!')
+
+
+@client.command(aliases=['ro'])
+async def rob(ctx, member: discord.Member):
+    await open_account(ctx.author)
+    await open_account(member)
+    bal = await update_bank(member)
+
+    if bal[0] < 100:
+        await ctx.send('It is useless to rob him :(')
+        return
+
+    earning = random.randrange(0, bal[0])
+
+    await update_bank(ctx.author, earning)
+    await update_bank(member, -1 * earning)
+    await ctx.send(f'{ctx.author.mention} You robbed {member} and got {earning} 🪙 Helix Credits')
+
+
+@client.command()
+async def slots(ctx, amount=None):
+    await open_account(ctx.author)
+
+    if amount is None:
+        await ctx.send("Please enter the amount")
+        return
+
+    bal = await update_bank(ctx.author)
+
+    amount = int(amount)
+
+    if amount > bal[0]:
+        await ctx.send('You do not have sufficient balance')
+        return
+    if amount < 0:
+        await ctx.send('Amount must be positive!')
+        return
+
+    symbols = ['🍒', '🍋', '🍇','🎰','🍎']  # Emojis for the slot symbols
+    final = [random.choice(symbols) for _ in range(3)]
+
+    slot_result = ' '.join(final)  # Display the slot results using emojis
+
+    if final[0] == final[1] or final[1] == final[2] or final[0] == final[2]:
+        win_amount = 2 * amount
+        await update_bank(ctx.author, win_amount)
+        message = f'You won 🪙 {win_amount} **Helix Credits**! {ctx.author.mention} 🎉'
+    else:
+        lose_amount = -1 * amount
+        await update_bank(ctx.author, lose_amount)
+        message = f'You lose 🪙 **{amount} Helix Credits**. Better luck next time! {ctx.author.mention} 😔'
+
+    embed = discord.Embed(
+        title="🎰 Slotting!",
+        description=f'{slot_result}\n\n{message}',
+        color=discord.Color.green()
+    )
+
+    await ctx.send(embed=embed)
+
+
+
+
+
+# Define a custom error for the cooldown
+class CooldownError(commands.CommandError):
+    pass
+
+# Create a dictionary to store user cooldown data
+user_cooldowns = {}
+
+# Define a constant for the command cooldown duration
+COOLDOWN_DURATION = 7200
+
+# Define a constant for the number of times a user needs to trigger the cooldown to be banned
+BAN_THRESHOLD = 2
+
+# Define a constant for the ban duration in seconds (2 days)
+BAN_DURATION = 2 * 24 * 60 * 60
+
+# Add the cooldown decorator to the work command
+@client.command()
+async def work(ctx):
+    # Check if the user is in the cooldown dictionary
+    if ctx.author.id in user_cooldowns:
+        # Check if the user has reached the ban threshold
+        if user_cooldowns[ctx.author.id]["count"] >= BAN_THRESHOLD:
+            # Ban the user for the specified duration
+            await ctx.send("You are banned from using the work command for 2 days.")
+            await asyncio.sleep(BAN_DURATION)
+            # Remove the user from the cooldown dictionary after the ban is lifted
+            del user_cooldowns[ctx.author.id]
+            return
+        else:
+            # Calculate the remaining cooldown time
+            remaining_time = user_cooldowns[ctx.author.id]["timestamp"] + COOLDOWN_DURATION - int(time.time())
+            if remaining_time > 0:
+                await ctx.send(f"You're on cooldown for {remaining_time} seconds. Please try again later.")
+                return
+
+    # List of job opportunities
+    jobs = [
+        {"name": "As Altair in Stealth", "min_earnings": 150, "max_earnings": 500},
+        {"name": "On Edward's Jackdaw damaged armor, fixed it", "min_earnings": 200, "max_earnings": 400},
+        {"name": "As Basim", "min_earnings": 180, "max_earnings": 450},
+        {"name": "On Arno's Hidden Blade To Fix It", "min_earnings": 180, "max_earnings": 450},
+        {"name": "In Jacobs Factory", "min_earnings": 180, "max_earnings": 450},
+        {"name": "On Edwards House", "min_earnings": 180, "max_earnings": 450},
+        {"name": "As Ezio In The Darkness", "min_earnings": 100, "max_earnings": 300},
+        # Add more job opportunities as needed
+    ]
+
+    job = random.choice(jobs)
+    earnings = random.randint(job["min_earnings"], job["max_earnings"])
+
+    # Simulate earning money and update the user's bank
+    await update_bank(ctx.author, earnings)
+
+    embed = discord.Embed(
+        title="🥷 Working..",
+        description=f'{ctx.author.mention} You worked {job["name"]} and earned 🪙 **{earnings} Helix Credits**!')
+
+    await ctx.send(embed=embed)
+
+    # Update the user's cooldown data in the dictionary
+    if ctx.author.id in user_cooldowns:
+        user_cooldowns[ctx.author.id]["count"] += 1
+        user_cooldowns[ctx.author.id]["timestamp"] = int(time.time())
+    else:
+        user_cooldowns[ctx.author.id] = {"count": 1, "timestamp": int(time.time())}
+
+# Define an error handler for the CooldownError
+@work.error
+async def work_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        # Calculate the remaining cooldown time
+        remaining_time = round(error.retry_after)
+        await ctx.send(f"You're on cooldown for {remaining_time} seconds. Please try again later.")
+    else:
+        # Handle other errors
+        await ctx.send(f"An error occurred: {error}")
+
+
+
+
+
+@client.event
+async def on_message(message):
+    if message.author.bot == False:
+        with open('users.json', 'r') as f:
+            users = json.load(f)
+
+        await update_data(users, message.author)
+        await add_experience(users, message.author, 5)
+        await level_up(users, message.author, message)
+
+        with open('users.json', 'w') as f:
+            json.dump(users, f)
+
+    await client.process_commands(message)
+
+
+async def update_data(users, user):
+    if not f'{user.id}' in users:
+        users[f'{user.id}'] = {}
+        users[f'{user.id}']['experience'] = 0
+        users[f'{user.id}']['level'] = 1
+
+
+async def add_experience(users, user, exp):
+    users[f'{user.id}']['experience'] += exp
+
+
+async def level_up(users, user, message):
+    with open('levels.json', 'r') as g:
+        levels = json.load(g)
+    experience = users[f'{user.id}']['experience']
+    lvl_start = users[f'{user.id}']['level']
+    lvl_end = int(experience ** (1 / 4))
+
+    if lvl_start < lvl_end:
+        embed = discord.Embed(
+            title=f'{user.display_name} has leveled up!',
+            description=f'Great job, {user.mention}! You are now at level {lvl_end} 🥷',
+            color=0x00ff00  # You can set the color of the embed here (green in this case).
+        )
+        embed.set_footer(text='Keep going bro! 🤺🔥')
+        embed.set_image(url="https://media.discordapp.net/attachments/1158878665040478389/1159082002096590878/daeAGsjkmkscuz9c6krRVF_1.jpg?ex=651e96bc&is=651d453c&hm=7b2bbd89eb0890a0e36f204d37f84119264264c1c64dc291dfcfefe92a26b827&=&width=807&height=77")
+        await message.channel.send(embed=embed)
+        users[f'{user.id}']['level'] = lvl_end
+
+@client.command()
+async def level(ctx, member: discord.Member = None):
+    if not member:
+        id = ctx.message.author.id
+        with open('users.json', 'r') as f:
+            users = json.load(f)
+        lvl = users[str(id)]['level']
+        embed = discord.Embed(
+            title="Your Level ⬆️",
+            description=f'**You are at level** **{lvl}** keep grinding bud 🤺!',
+            color = 0x00000
+
+        )
+        embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+
+
+        await ctx.send(embed=embed)
+    else:
+        id = member.id
+        with open('users.json', 'r') as f:
+            users = json.load(f)
+        lvl = users[str(id)]['level']
+        embed = discord.Embed(
+            title=f"{member}'s Level",
+            description=f'{member} is at level **{lvl}**!',
+            color=member.color
+        )
+        await ctx.send(embed=embed)
+
+
+
+
+
+
+@client.command()
+async def shop(ctx):
+    em = discord.Embed(title="Shop")
+
+    for item in mainshop:
+        name = item["name"]
+        price = item["price"]
+        desc = item["description"]
+        em.add_field(name=name, value=f"🪙 HELIX CREDITS `{price}` | {desc}")
+
+    em.set_image(url="https://media.discordapp.net/attachments/1157770692054487111/1158462244535947456/AC4_General_Store_interior.webp?ex=651c558a&is=651b040a&hm=57e1bc59d5a07864037318d8b37b325c323e0d5a474a2012cc27dcb11f16c9f7&=&width=1070&height=602")
+    await ctx.send(embed=em)
+
+
+
+# Define the cooldown duration in seconds (2 hours)
+COOLDOWN_DURATION = 7200
+
+# Define a custom error for the cooldown
+class CooldownError(commands.CommandError):
+    pass
+
+# Add the cooldown decorator to the hunt command
+@client.command()
+@commands.cooldown(1, COOLDOWN_DURATION, commands.BucketType.user)
+async def hunt(ctx):
+    # List of animals that can be hunted
+    animals = ["🦌 deer", "🐻 bear", "🐅 tiger", "🐆 leopard"]
+
+    # Randomly select an animal from the list
+    hunted_animal = random.choice(animals)
+
+    # Determine the outcome of the hunt (success or failure)
+    hunt_success = random.choice([True, False])
+
+    # Prepare the embed message
+    embed = discord.Embed(
+        title="You went hunting and encountered a wild animal!",
+        color=discord.Color.green() if hunt_success else discord.Color.red()
+    )
+    embed.add_field(
+        name="🏹",
+        value=f"You found a **{hunted_animal}** in the wilderness.\n{'You successfully hunted it down!' if hunt_success else 'Unfortunately, it got away.'}",
+        inline=False
+    )
+
+    # Set a footer with the user's name and avatar
+    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+
+    await ctx.send(embed=embed)
+
+# Define an error handler for the CooldownError
+@hunt.error
+async def hunt_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        # Calculate the remaining cooldown time
+        remaining_time = round(error.retry_after)
+        await ctx.send(f"You're on cooldown for {remaining_time} seconds. Please try again later.")
+    else:
+        # Handle other errors
+        await ctx.send(f"An error occurred: {error}")
+
+@client.command()
+async def buy(ctx, item, amount=1):
+    await open_account(ctx.author)
+
+    res = await buy_this(ctx.author, item, amount)
+
+    if not res[0]:
+        if res[1] == 1:
+            await ctx.send("That Object isn't there!")
+            return
+        if res[1] == 2:
+            await ctx.send(f"You don't have enough credits in your wallet to buy {amount} {item}")
+            return
+
+    await ctx.send(f"Congrats! You just bought **{amount}** {item} **✅**")
+
+
+@client.command()
+async def inv(ctx):
+    await open_account(ctx.author)
+    user = ctx.author
+    users = await get_bank_data()
+
+    try:
+        bag = users[str(user.id)]["bag"]
+    except:
+        bag = []
+
+    em = discord.Embed(title="👜 Your Items.inv")
+    for item in bag:
+        name = item["item"]
+        amount = item["amount"]
+
+        em.add_field(name=name, value=amount)
+
+    await ctx.send(embed=em)
+
+
+async def buy_this(user, item_name, amount):
+    item_name = item_name.lower()
+    name_ = None
+    for item in mainshop:
+        name = item["name"].lower()
+        if name == item_name:
+            name_ = name
+            price = item["price"]
+            break
+
+    if name_ == None:
+        return [False, 1]
+
+    cost = price * amount
+
+    users = await get_bank_data()
+
+    bal = await update_bank(user)
+
+    if bal[0] < cost:
+        return [False, 2]
+
+    try:
+        index = 0
+        t = None
+        for thing in users[str(user.id)]["bag"]:
+            n = thing["item"]
+            if n == item_name:
+                old_amt = thing["amount"]
+                new_amt = old_amt + amount
+                users[str(user.id)]["bag"][index]["amount"] = new_amt
+                t = 1
+                break
+            index += 1
+        if t == None:
+            obj = {"item": item_name, "amount": amount}
+            users[str(user.id)]["bag"].append(obj)
+    except:
+        obj = {"item": item_name, "amount": amount}
+        users[str(user.id)]["bag"] = [obj]
+
+    with open("mainbank.json", "w") as f:
+        json.dump(users, f)
+
+    await update_bank(user, cost * -1, "wallet")
+
+    return [True, "Worked"]
+
+
+@client.command()
+async def sell(ctx, item, amount=1):
+    await open_account(ctx.author)
+
+    res = await sell_this(ctx.author, item, amount)
+
+    if not res[0]:
+        if res[1] == 1:
+            await ctx.send("That Object isn't there!")
+            return
+        if res[1] == 2:
+            await ctx.send(f"You don't have {amount} {item} in your bag.")
+            return
+        if res[1] == 3:
+            await ctx.send(f"You don't have {item} in your bag.")
+            return
+
+    await ctx.send(f"Sad! 🥺 You just sold **{amount} {item}**.")
+
+
+async def sell_this(user, item_name, amount, price=None):
+    item_name = item_name.lower()
+    name_ = None
+    for item in mainshop:
+        name = item["name"].lower()
+        if name == item_name:
+            name_ = name
+            if price == None:
+                price = 0.7 * item["price"]
+            break
+
+    if name_ == None:
+        return [False, 1]
+
+    cost = price * amount
+
+    users = await get_bank_data()
+
+    bal = await update_bank(user)
+
+    try:
+        index = 0
+        t = None
+        for thing in users[str(user.id)]["bag"]:
+            n = thing["item"]
+            if n == item_name:
+                old_amt = thing["amount"]
+                new_amt = old_amt - amount
+                if new_amt < 0:
+                    return [False, 2]
+                users[str(user.id)]["bag"][index]["amount"] = new_amt
+                t = 1
+                break
+            index += 1
+        if t == None:
+            return [False, 3]
+    except:
+        return [False, 3]
+
+    with open("mainbank.json", "w") as f:
+        json.dump(users, f)
+
+    await update_bank(user, cost, "wallet")
+
+    return [True, "Worked"]
+
+
+@client.command(aliases=["rich"])
+async def richest(ctx, x=1):
+    users = await get_bank_data()
+    leader_board = {}
+    total = []
+    for user in users:
+        name = int(user)
+        total_amount = users[user]["wallet"] + users[user]["bank"]
+        leader_board[total_amount] = name
+        total.append(total_amount)
+
+    total = sorted(total, reverse=True)
+
+    em = discord.Embed(title=f"Top {x} Richest People",
+                       description="This is decided on the basis of raw money in the bank and wallet",
+                       color=discord.Color(0xfa43ee))
+    index = 1
+    for amt in total:
+        id_ = leader_board[amt]
+        member = client.get_user(id_)
+        name = member.name
+        em.add_field(name=f"{index}. {name}", value=f"{amt}", inline=False)
+        if index == x:
+            break
+        else:
+            index += 1
+
+    await ctx.send(embed=em)
+
+
+# ----------------------------------------------------
+
+async def open_account(user):
+    users = await get_bank_data()
+
+    if str(user.id) in users:
+        return False
+    else:
+        users[str(user.id)] = {}
+        users[str(user.id)]["wallet"] = 0
+        users[str(user.id)]["bank"] = 0
+
+    with open('mainbank.json', 'w') as f:
+        json.dump(users, f)
+
+    return True
+
+
+async def get_bank_data():
+    with open('mainbank.json', 'r') as f:
+        users = json.load(f)
+
+    return users
+
+
+async def update_bank(user, change=0, mode='wallet'):
+    users = await get_bank_data()
+
+    users[str(user.id)][mode] += change
+
+    with open('mainbank.json', 'w') as f:
+        json.dump(users, f)
+    bal = users[str(user.id)]['wallet'], users[str(user.id)]['bank']
+    return bal
+
+
+@client.event
+async def on_ready():
+    activity = discord.Game(name="AC REBORN V1!", type=3)
+    await client.change_presence(activity=discord.Game(name="Assassin's Creed Mirage"))
+    print("Bot is ready!")
+
+
+
+@client.command()
+async def help(ctx):
+  embed = discord.Embed(title="Help Panel",
+
+    )
+
+  embed.add_field(name='.help 🆘', value="list of commands")
+  embed.add_field(name='.utility ⚙️', value="list of util commands")
+  embed.add_field(name='.fun 💀', value="list of fun commands")
+  embed.add_field(name='.games 🕹️', value="list of games commands")
+  embed.add_field(name='.economy 🤑', value="list of economy commands")
+  embed.set_image(url = 'https://media.discordapp.net/attachments/1158878665040478389/1159089068068581397/ac_logo_for_jamez.png?ex=651e9d50&is=651d4bd0&hm=28c9ec662ced0fd669b986dd002f3992164d175d7348ca7f9e66db92bb32da09&=&width=581&height=581')
+  embed.set_footer(text='🥷 | Version 1.0.1 BETA ✅')
+
+  await ctx.send(embed=embed)
+
+
+@client.command()
+async def fun(ctx):
+    embed = discord.Embed(title="Fun Commands", description="list of all fun commands",
+
+                          )
+
+    embed.add_field(name='.howac', value="percentage of how ac you are")
+    embed.add_field(name='.8ball', value="an answer based on your question")
+    embed.set_image(
+        url="https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/e35d8c47287397.5875eef53f061.jpg")
+
+    await ctx.send(embed=embed)
+
+
+@client.command()
+async def games(ctx):
+    embed = discord.Embed(title="Gaming Commands", description="list of all gaming commands",
+
+                          )
+
+    embed.add_field(name='.actoe', value="2 players tictactoe ac game")
+    embed.set_image(
+        url="https://th.bing.com/th/id/R.0620046106bb34dac4bad5c0ce0147ca?rik=%2fiRfBUSCdki5dw&riu=http%3a%2f%2fwww.pixelstalk.net%2fwp-content%2fuploads%2f2016%2f05%2fLogo-assassins-creed-emblem-wallpapers-sign.jpg&ehk=%2fkQCHgemZXKZW80Bhp%2beO%2fgAvslwb1FE4VrnhCodtSU%3d&risl=1&pid=ImgRaw&r=0")
+
+    await ctx.send(embed=embed)
+
+
+@client.command()
+async def actoe(ctx, opponent: discord.Member):
+    if ctx.author == opponent:
+        await ctx.send("You cannot play against yourself!")
+        return
+
+    # Create a blank Tic-Tac-Toe board
+    board = ['⬜', '⬜', '⬜',
+             '⬜', '⬜', '⬜',
+             '⬜', '⬜', '⬜']
+
+    # Initialize the players
+    player1 = ctx.author
+    player2 = opponent
+
+    # Create a dictionary to map positions to board indices
+    position_to_index = {
+        '1': 0, '2': 1, '3': 2,
+        '4': 3, '5': 4, '6': 5,
+        '7': 6, '8': 7, '9': 8
+    }
+
+    # Create a function to display the current board as an embed
+    def display_board():
+        board_str = ''
+        for i, cell in enumerate(board):
+            board_str += cell
+            if (i + 1) % 3 == 0:
+                board_str += '\n'
+        embed = discord.Embed(title='Tic-Tac-Toe', description=board_str, color=0x00ff00)
+        return embed
+
+    # Send the initial board as an embed
+    message = await ctx.send(embed=display_board())
+
+    # Game loop
+    current_player = player1
+    while '⬜' in board:
+        try:
+            # Wait for the current player to make a move
+            await ctx.send(f'{current_player.mention}, choose a position (1-9):')
+
+            def check_move(message):
+                return message.author == current_player and message.content in ['1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+            move_msg = await client.wait_for('message', check=check_move, timeout=30.0)
+            position = move_msg.content
+
+            # Check if the move is valid
+            if board[position_to_index[position]] == '⬜':
+                board[position_to_index[position]] = '🥷' if current_player == player1 else '🤺'
+                await message.edit(embed=display_board())
+
+                # Check for a win
+                win_patterns = [(0, 1, 2), (3, 4, 5), (6, 7, 8),
+                                (0, 3, 6), (1, 4, 7), (2, 5, 8),
+                                (0, 4, 8), (2, 4, 6)]
+                for pattern in win_patterns:
+                    if all(board[i] == '🥷' for i in pattern):
+                        await ctx.send(f'{player1.mention} wins! 🎉')
+                        return
+                    elif all(board[i] == '🤺' for i in pattern):
+                        await ctx.send(f'{player2.mention} wins! 🎉')
+                        return
+
+                # Switch to the other player's turn
+                current_player = player1 if current_player == player2 else player2
+
+            else:
+                await ctx.send('Invalid move! Please choose an empty cell (1-9).')
+
+        except asyncio.TimeoutError:
+            await ctx.send('The game has ended due to inactivity.')
+            return
+
+    # If the board is full and there is no winner, it's a tie
+    await ctx.send('It\'s a tie! 😕')
+
+
+
+
+def display_board(board):
+    embed = discord.Embed(title='Tic-Tac-Toe', color=0x00ff00)
+    embed.add_field(name='1️⃣ 2️⃣ 3️⃣', value=f'{board[0]} {board[1]} {board[2]}', inline=False)
+    embed.add_field(name='4️⃣ 5️⃣ 6️⃣', value=f'{board[3]} {board[4]} {board[5]}', inline=False)
+    embed.add_field(name='7️⃣ 8️⃣ 9️⃣', value=f'{board[6]} {board[7]} {board[8]}', inline=False)
+    return embed
+
+
+
+
+
+
+
+
+
+
+
+@client.command()
+async def economy(ctx):
+    embed = discord.Embed(title='Economy Commands', description="list of all economy commands",
+
+                          )
+
+    embed.add_field(name='.bal', value="shows your balance and bank")
+    embed.add_field(name='.hunt', value="hunts an animal")
+    embed.add_field(name='.beg', value="begs and earn coins")
+    embed.add_field(name='.rob', value="robs members coins")
+    embed.add_field(name='.shop', value="items to buy at shop")
+    embed.add_field(name='.inv', value="shows your bought items")
+    embed.add_field(name='.send', value="sends member coins")
+    embed.add_field(name='.dep', value="deposits from the bank")
+    embed.add_field(name='.slots', value="bet your money and try to earn more")
+    embed.add_field(name='.withdraw', value="withdraws coins")
+    embed.add_field(name='.buy', value="buys item from the shop")
+    embed.add_field(name='.sell', value="sells the item")
+    color = 0x000000
+    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+    embed.set_image(url="https://media.discordapp.net/attachments/1158878665040478389/1158890800831287418/apps.31083.68164954561423838.0e17ca7c-dc16-4e8e-af0d-151a46e32d6e.jpeg?ex=651de4aa&is=651c932a&hm=aef9d246fe8a177f27e9d04e52207a0f27107a0cac9c39b9fa73bf0c945052ef&=&width=1033&height=581")
+    await ctx.send(embed=embed)
+
+
+
+def load_user_data():
+    try:
+        with open("users.json", "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+
+# Save user data to a JSON file
+def save_user_data(data):
+    with open("users.json", "w") as file:
+        json.dump(data, file)
+
+
+@client.command()
+async def userinfo(ctx, member: discord.Member = None):
+    if member is None:
+        member = ctx.author
+
+    # Load user data from the JSON file
+    user_data = load_user_data()
+
+    # Check if the user exists in the user_data dictionary
+    if str(member.id) in user_data:
+        user_info = user_data[str(member.id)]
+        level = user_info.get("level", 1)
+    else:
+        level = 1
+
+    # Create an embed to display user information
+    embed = discord.Embed(title="User Info", color=0x00ff00)
+    embed.set_thumbnail(url=member.avatar.url)
+    embed.add_field(name="User", value=member.mention, inline=True)
+    embed.add_field(name="User ID", value=member.id, inline=True)
+    embed.add_field(name="Level", value=level, inline=True)
+    embed.set_footer(text=f"✅ Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+
+    await ctx.send(embed=embed)
+
+
+
+@client.command()
+async def utility(ctx):
+    embed = discord.Embed(title='Util Commands', description="list of all utility commands",
+
+                          )
+
+    embed.add_field(name='.ping', value="checks the bots latency")
+    embed.add_field(name='.uptime', value="checks how long the bots running")
+    embed.add_field(name='.userinfo', value="checks user's id and level & more")
+    color = 0x000000
+    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+    embed.set_image(url="https://media.discordapp.net/attachments/1158878665040478389/1159247191148339231/R_4.jpeg?ex=65305414&is=651ddf14&hm=596c88e157c074c2999eef13659f8dd0e273fa614e925e23b5b0b44435e211a1&=&width=1038&height=583")
+    await ctx.send(embed=embed)
+
+@client.command()
+async def ping(ctx):
+    await ctx.send(f'**Pong!** Latency: {round(client.latency * 1000)}ms')
+
+
+@client.command(aliases=['8ball'])
+async def _8ball(ctx, *, question):
+  responses = [
+  discord.Embed(title='It is certain.'),
+  discord.Embed(title='It is decidedly so.'),
+  discord.Embed(title='Without a doubt.'),
+  discord.Embed(title='Yes - definitely.'),
+  discord.Embed(title='You may rely on it.'),
+  discord.Embed(title='Most likely.'),
+  discord.Embed(title='Outlook good.'),
+  discord.Embed(title='Yes.'),
+  discord.Embed(title='Signs point to yes.'),
+  discord.Embed(title='Reply hazy, try again.'),
+  discord.Embed(title='Ask again later.'),
+  discord.Embed(title='Better not tell you now.'),
+  discord.Embed(title='Cannot predict now.'),
+  discord.Embed(title='Concentrate and ask again.'),
+  discord.Embed(title="Don't count on it."),
+  discord.Embed(title='My reply is no.'),
+  discord.Embed(title='My sources say no.'),
+  discord.Embed(title='Outlook not very good.'),
+  discord.Embed(title='Very doubtful.')
+    ]
+  responses = random.choice(responses)
+  await ctx.send(content=f'Question: {question}\nAnswer:', embed=responses)
+
+
+keep_alive()
+
+client.run(os.getenv('TOKEN'))

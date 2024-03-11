@@ -1,0 +1,8 @@
+{
+  "⏲ Uitility": "`help,btff,quote,uptime,ping,pingweb,level,tinyurl`",
+  "😮 Fun": "`reverse,rolldice,8ball,gayrate,gtoken,nitro`",
+  "🕹️ Games": "`rps,tictactoe`",
+  "📃 Misc": "`serverstats,userinfo,adminserver`",
+  "🔧 Admin": "`ban,kick,clear,mute,unmute`",
+  "💰 Economy": "`bal,beg,rob,buy,inv,send,dep,slots,shop,withdraw,buy,sell`"
+}
